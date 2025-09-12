@@ -1,0 +1,571 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* DM Sans Font Family */
+@font-face {
+  font-family: "DM Sans";
+  src: url("/fonts/DMSans-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "DM Sans";
+  src: url("/fonts/DMSans-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "DM Sans";
+  src: url("/fonts/DMSans-SemiBold.ttf") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "DM Sans";
+  src: url("/fonts/DMSans-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "DM Sans";
+  src: url("/fonts/DMSans-ExtraBold.ttf") format("truetype");
+  font-weight: 800;
+  font-style: normal;
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  color: var(--foreground);
+  font-family: "DM Sans", Arial, Helvetica, sans-serif;
+  overflow-x: hidden;
+  max-width: 100vw;
+  margin: 0;
+  padding: 0;
+  background-image: linear-gradient(
+    to bottom right,
+    rgba(15, 23, 42, 0.9),
+    rgba(88, 28, 135, 0.4),
+    rgba(15, 23, 42, 0.9)
+  );
+}
+
+/* Prevent horizontal overflow globally */
+html,
+body {
+  overflow-x: hidden;
+  max-width: 100vw;
+  width: 100%;
+}
+
+/* Ensure all containers respect viewport width */
+* {
+  box-sizing: border-box;
+}
+
+/* Container constraints */
+.container,
+.container-fluid {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbar Styles - Dark Purple Theme */
+::-webkit-scrollbar {
+  width: 24px;
+  height: 24px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0f0f23;
+  border-radius: 12px;
+  border: 2px solid #2d2d5a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #7c3aed, #9333ea, #a855f7);
+  border-radius: 12px;
+  border: 3px solid #0f0f23;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #9333ea, #a855f7, #c084fc);
+  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.5);
+  transform: scale(1.02);
+}
+
+::-webkit-scrollbar-corner {
+  background: #0f0f23;
+}
+
+/* Firefox Scrollbar Styles */
+* {
+  scrollbar-width: thick;
+  scrollbar-color: #7c3aed #0f0f23;
+}
+
+/* Hide scrollbar utility */
+.scrollbar-hide {
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
+  scrollbar-width: none; /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Safari and Chrome */
+}
+
+/* Line clamp utilities */
+.line-clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.line-clamp-3 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+/* Responsive Design for Chatbot Management */
+@media (min-width: 640px) {
+  .chatbot-management-container {
+    padding: 1rem !important;
+  }
+
+  .chatbot-management-header {
+    gap: 1rem !important;
+    margin-bottom: 1.5rem !important;
+  }
+
+  .chatbot-management-title {
+    font-size: 1.5rem !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  .chatbot-management-description {
+    font-size: 1rem !important;
+  }
+
+  .chatbot-management-button {
+    padding: 1rem 2rem !important;
+    font-size: 1rem !important;
+  }
+
+  .chatbot-management-search {
+    padding: 0.875rem 1.25rem 0.875rem 3rem !important;
+  }
+
+  .chatbot-management-filters {
+    gap: 0.75rem !important;
+    padding-bottom: 0.75rem !important;
+  }
+
+  .chatbot-management-filter-button {
+    padding: 0.625rem 1rem !important;
+    font-size: 0.875rem !important;
+  }
+
+  .chatbot-management-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 1rem !important;
+  }
+
+  .chatbot-management-card {
+    padding: 1rem !important;
+  }
+
+  .chatbot-management-card-title {
+    font-size: 1rem !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  .chatbot-management-card-description {
+    font-size: 0.875rem !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .chatbot-management-container {
+    padding: 1.5rem !important;
+  }
+
+  .chatbot-management-header {
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 1.5rem !important;
+    margin-bottom: 2rem !important;
+  }
+
+  .chatbot-management-title {
+    font-size: 1.75rem !important;
+    margin-bottom: 1rem !important;
+  }
+
+  .chatbot-management-description {
+    font-size: 1.125rem !important;
+    margin: 0 !important;
+  }
+
+  .chatbot-management-button {
+    width: auto !important;
+    margin: 0 !important;
+    padding: 1.25rem 2.5rem !important;
+    font-size: 1.125rem !important;
+  }
+
+  .chatbot-management-search {
+    padding: 1rem 1.5rem 1rem 3.5rem !important;
+  }
+
+  .chatbot-management-filters {
+    gap: 1rem !important;
+    padding-bottom: 1rem !important;
+  }
+
+  .chatbot-management-filter-button {
+    padding: 0.75rem 1.25rem !important;
+    font-size: 1rem !important;
+  }
+
+  .chatbot-management-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 1.5rem !important;
+  }
+
+  .chatbot-management-card {
+    padding: 1.25rem !important;
+  }
+
+  .chatbot-management-card-title {
+    font-size: 1.125rem !important;
+    margin-bottom: 1rem !important;
+  }
+
+  .chatbot-management-card-description {
+    font-size: 1rem !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .chatbot-management-container {
+    padding: 2rem !important;
+  }
+
+  .chatbot-management-header {
+    gap: 2rem !important;
+    margin-bottom: 2.5rem !important;
+  }
+
+  .chatbot-management-title {
+    font-size: 2rem !important;
+    margin-bottom: 1.25rem !important;
+  }
+
+  .chatbot-management-description {
+    font-size: 1.25rem !important;
+  }
+
+  .chatbot-management-button {
+    padding: 1.5rem 3rem !important;
+    font-size: 1.25rem !important;
+  }
+
+  .chatbot-management-search {
+    padding: 1.25rem 2rem 1.25rem 4rem !important;
+  }
+
+  .chatbot-management-filters {
+    gap: 1.25rem !important;
+    padding-bottom: 1.25rem !important;
+  }
+
+  .chatbot-management-filter-button {
+    padding: 1rem 1.5rem !important;
+    font-size: 1.125rem !important;
+  }
+
+  .chatbot-management-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 2rem !important;
+  }
+
+  .chatbot-management-card {
+    padding: 1.5rem !important;
+  }
+
+  .chatbot-management-card-title {
+    font-size: 1.25rem !important;
+    margin-bottom: 1.25rem !important;
+  }
+
+  .chatbot-management-card-description {
+    font-size: 1.125rem !important;
+  }
+}
+
+@media (min-width: 1280px) {
+  .chatbot-management-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+}
+
+/* Custom Scrollbar for specific elements - Extra Thick */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 32px;
+  height: 32px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #0f0f23;
+  border-radius: 16px;
+  border: 3px solid #2d2d5a;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #7c3aed, #9333ea, #a855f7);
+  border-radius: 16px;
+  border: 4px solid #0f0f23;
+  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.4);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #9333ea, #a855f7, #c084fc);
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.6);
+  transform: scale(1.05);
+}
+
+/* Custom Range Slider Styles */
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.slider::-webkit-slider-track {
+  background: #374151;
+  border-radius: 8px;
+  height: 8px;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  background: linear-gradient(135deg, #7c3aed, #9333ea);
+  border-radius: 50%;
+  height: 20px;
+  width: 20px;
+  border: 2px solid #1f2937;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+  transition: all 0.2s ease;
+}
+
+.slider::-webkit-slider-thumb:hover {
+  background: linear-gradient(135deg, #9333ea, #a855f7);
+  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.5);
+  transform: scale(1.1);
+}
+
+.slider::-moz-range-track {
+  background: #374151;
+  border-radius: 8px;
+  height: 8px;
+  border: none;
+}
+
+.slider::-moz-range-thumb {
+  background: linear-gradient(135deg, #7c3aed, #9333ea);
+  border-radius: 50%;
+  height: 20px;
+  width: 20px;
+  border: 2px solid #1f2937;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.slider::-moz-range-thumb:hover {
+  background: linear-gradient(135deg, #9333ea, #a855f7);
+  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.5);
+  transform: scale(1.1);
+}
+
+/* Custom scrollbar styles */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.5);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 92, 246, 0.7);
+}
+
+/* Hide scrollbar for mobile but keep functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Responsive utilities */
+@media (max-width: 640px) {
+  .xs\:hidden {
+    display: none;
+  }
+
+  .xs\:inline {
+    display: inline;
+  }
+}
+
+/* Ensure proper text truncation */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Smooth transitions for better UX */
+* {
+  transition-property:
+    color, background-color, border-color, text-decoration-color, fill, stroke,
+    opacity, box-shadow, transform, filter, backdrop-filter;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Focus states for better accessibility */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid rgba(139, 92, 246, 0.5);
+  outline-offset: 2px;
+}
+
+/* Fade-in animation for chat messages and snackbar */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 5px rgba(168, 85, 247, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.6);
+  }
+}
+
+@keyframes typing-dots {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.4s ease-out;
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 0.4s ease-out;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-typing-dots {
+  animation: typing-dots 1.4s ease-in-out infinite;
+}
