@@ -74,12 +74,6 @@ export default function useSignUp() {
     setIsChecked(false);
   }, [router]);
 
-  const moveRouter = (data) => {
-    router.push(
-      `/verify-email?type=email-verification&email=${getEmailForURL(data.email)}`
-    );
-  };
-
   const onSubmit = async (values) => {
     setLoading(true);
 
@@ -103,10 +97,7 @@ export default function useSignUp() {
           localStorage.setItem("user", JSON.stringify({ user: userData }));
         }
         console.log("Registration successful:", response.payload);
-        router.push(
-          "/verify-email?type=email-verification&email=" +
-            encodeURIComponent(values.email)
-        );
+        router.push("/login");
       } else {
         // Registration failed
         console.log("Registration failed:", response.payload);

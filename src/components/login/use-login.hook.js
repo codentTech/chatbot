@@ -44,6 +44,7 @@ export default function useLogin() {
 
   useEffect(() => {
     handleLogin();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // functions
@@ -59,17 +60,42 @@ export default function useLogin() {
         localStorage.getItem("rememberedUsername") &&
         localStorage.getItem("rememberedPassword")
       ) {
-        const storedUsername = localStorage.getItem("rememberedUsername");
-        const storedEncryptedPassword =
-          localStorage.getItem("rememberedPassword");
-        // Compare the entered password with the stored encrypted password
-        const bytes = AES.decrypt(
-          storedEncryptedPassword,
-          process.env.NEXT_PUBLIC_MAIN_URL_SECRET_KEY
-        );
-        const decryptedPassword = bytes.toString(enc.Utf8);
-        setValue("email", storedUsername);
-        setValue("password", decryptedPassword);
+        try {
+          const storedUsername = localStorage.getItem("rememberedUsername");
+          const storedEncryptedPassword =
+            localStorage.getItem("rememberedPassword");
+
+          // Check if encryption key exists
+          const encryptionKey = process.env.NEXT_PUBLIC_MAIN_URL_SECRET_KEY;
+          if (!encryptionKey) {
+            console.warn(
+              "Encryption key not found. Skipping password decryption."
+            );
+            setValue("email", storedUsername);
+            return;
+          }
+
+          // Compare the entered password with the stored encrypted password
+          const bytes = AES.decrypt(storedEncryptedPassword, encryptionKey);
+
+          if (!bytes) {
+            console.warn(
+              "Failed to decrypt password. Clearing stored credentials."
+            );
+            localStorage.removeItem("rememberedUsername");
+            localStorage.removeItem("rememberedPassword");
+            return;
+          }
+
+          const decryptedPassword = bytes.toString(enc.Utf8);
+          setValue("email", storedUsername);
+          setValue("password", decryptedPassword);
+        } catch (error) {
+          console.error("Error decrypting password:", error);
+          // Clear invalid stored credentials
+          localStorage.removeItem("rememberedUsername");
+          localStorage.removeItem("rememberedPassword");
+        }
       }
     }
   };
@@ -95,13 +121,27 @@ export default function useLogin() {
     if (typeof window === "object" && isChecked) {
       // Check if the browser supports localStorage
       if (localStorage) {
-        // Encrypt the password
-        const encryptedPassword = AES.encrypt(
-          values.password,
-          process.env.NEXT_PUBLIC_MAIN_URL_SECRET_KEY
-        ).toString();
-        localStorage.setItem("rememberedUsername", values.email);
-        localStorage.setItem("rememberedPassword", encryptedPassword);
+        try {
+          const encryptionKey = process.env.NEXT_PUBLIC_MAIN_URL_SECRET_KEY;
+          if (encryptionKey) {
+            // Encrypt the password
+            const encryptedPassword = AES.encrypt(
+              values.password,
+              encryptionKey
+            ).toString();
+            localStorage.setItem("rememberedUsername", values.email);
+            localStorage.setItem("rememberedPassword", encryptedPassword);
+          } else {
+            console.warn(
+              "Encryption key not found. Storing credentials without encryption."
+            );
+            // Store without encryption as fallback (less secure)
+            localStorage.setItem("rememberedUsername", values.email);
+            localStorage.setItem("rememberedPassword", values.password);
+          }
+        } catch (error) {
+          console.error("Error encrypting password:", error);
+        }
       }
     }
     if (isChecked === false) {

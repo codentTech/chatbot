@@ -20,10 +20,6 @@ export const getUser = () => {
 export const removeUser = () => {
   if (typeof window === "object" && window.localStorage) {
     localStorage.removeItem("user");
-    localStorage.removeItem("isOtpVerify");
-    localStorage.removeItem("userId");
-    localStorage.removeItem("phone");
-    localStorage.removeItem("userProfile");
   }
 };
 

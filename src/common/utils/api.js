@@ -52,12 +52,12 @@ const api = (headers = null) => {
             response.config.url
           ));
 
-      // if (isSuccessResponse) {
-      //   enqueueSnackbar(response.data?.message || "Success", {
-      //     variant: "success",
-      //   });
-      //   await delay(700);
-      // }
+      if (isSuccessResponse) {
+        enqueueSnackbar(response.data?.message || "Success", {
+          variant: "success",
+        });
+        await delay(700);
+      }
 
       return response;
     },

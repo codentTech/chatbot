@@ -1,8 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useSelector } from "react-redux";
 import {
   Archive,
   Brain,
@@ -14,12 +11,10 @@ import {
   Plus,
   RefreshCw,
   Settings,
-  Share2,
   Star,
   Trash2,
 } from "lucide-react";
 import useChatSidebar from "./use-chat-sidebar.hook";
-import chatbotService from "@/provider/features/chatbot/chatbot.service";
 
 function Sidebar({
   sidebarOpen = true,
@@ -27,212 +22,50 @@ function Sidebar({
   selectedConversation = 1,
   setSelectedConversation = () => {},
 }) {
-  const router = useRouter();
-  const [collapsed, setCollapsed] = useState(false);
-  const [hoveredConv, setHoveredConv] = useState(null);
-  const [showContextMenu, setShowContextMenu] = useState(null);
-  const [editingConversationId, setEditingConversationId] = useState(null);
-  const [editingTitle, setEditingTitle] = useState("");
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleteConversationId, setDeleteConversationId] = useState(null);
-
-  // Local state for sidebar chatbots (independent from main page filters)
-  const [sidebarChatbots, setSidebarChatbots] = useState([]);
-  const [sidebarChatbotsLoading, setSidebarChatbotsLoading] = useState(false);
-
-  // Get Redux state to detect changes
-  const { chatbots: reduxChatbots, lastUpdated } = useSelector((state) => ({
-    chatbots: state.chatbot.chatbots,
-    lastUpdated: state.chatbot.lastUpdated,
-  }));
-
-  // Use the chat sidebar hook
   const {
+    // Data
     conversations,
+    sidebarChatbots,
     isLoading,
     isError,
     errorMessage,
+    isLoggedIn,
+    sidebarChatbotsLoading,
+
+    // UI state
+    collapsed,
+    hoveredConv,
+    showContextMenu,
+    editingConversationId,
+    editingTitle,
+    showDeleteConfirm,
+    deleteConversationId,
+
+    // Handlers
     handleNewChat,
-    handleDeleteFromFavorites,
-    handleDeleteFromRecent,
-    handleToggleStar,
-    handleClearConversation,
-    handleUpdateConversation,
-    isCreatingConversation,
-    isDeletingConversation,
-    deletingFromFavorites,
-    deletingFromRecent,
-  } = useChatSidebar();
-
-  // Function to fetch sidebar chatbots
-  const fetchSidebarChatbots = async () => {
-    setSidebarChatbotsLoading(true);
-    try {
-      const data = await chatbotService.getChatbots({}); // Always fetch without filters
-      setSidebarChatbots(data);
-    } catch (error) {
-      console.error("Failed to fetch sidebar chatbots:", error);
-      setSidebarChatbots([]);
-    } finally {
-      setSidebarChatbotsLoading(false);
-    }
-  };
-
-  // Fetch chatbots on component mount (independent from main page filters)
-  useEffect(() => {
-    fetchSidebarChatbots();
-  }, []);
-
-  // Refresh sidebar chatbots when navigating to chatbots page (in case new ones were created/deleted)
-  useEffect(() => {
-    const handleRouteChange = () => {
-      if (window.location.pathname === "/chatbots") {
-        fetchSidebarChatbots();
-      }
-    };
-
-    // Listen for route changes
-    window.addEventListener("popstate", handleRouteChange);
-
-    return () => {
-      window.removeEventListener("popstate", handleRouteChange);
-    };
-  }, []);
-
-  // Sync sidebar with Redux state changes (React way)
-  useEffect(() => {
-    // When Redux state changes (chatbots added/deleted/updated), sync sidebar
-    if (lastUpdated && reduxChatbots.length !== sidebarChatbots.length) {
-      // Only refresh if the count changed (simple optimization)
-      fetchSidebarChatbots();
-    }
-  }, [lastUpdated, reduxChatbots.length, sidebarChatbots.length]);
-
-  // Refresh sidebar when window regains focus (in case user switched tabs and came back)
-  useEffect(() => {
-    const handleFocus = () => {
-      // Only refresh if we're on a page that might have modified chatbots
-      if (window.location.pathname.includes("/chatbots")) {
-        fetchSidebarChatbots();
-      }
-    };
-
-    window.addEventListener("focus", handleFocus);
-
-    return () => {
-      window.removeEventListener("focus", handleFocus);
-    };
-  }, []);
-
-  const toggleSidebar = () => {
-    setCollapsed(!collapsed);
-  };
-
-  const handleContextMenu = (e, convId) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setShowContextMenu(showContextMenu === convId ? null : convId);
-  };
-
-  const handleDeleteClick = (convId) => {
-    setShowContextMenu(null);
-    setDeleteConversationId(convId);
-    setShowDeleteConfirm(true);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!deleteConversationId) return;
-
-    const success = await handleDeleteConversation(deleteConversationId);
-    if (success) {
-      console.log("Conversation deleted successfully");
-    }
-
-    setShowDeleteConfirm(false);
-    setDeleteConversationId(null);
-  };
-
-  const handleDeleteCancel = () => {
-    setShowDeleteConfirm(false);
-    setDeleteConversationId(null);
-  };
-
-  const handleStarClick = async (convId, currentIsStarred) => {
-    setShowContextMenu(null);
-    console.log(
-      "🚀 Star click for conversation:",
-      convId,
-      "current:",
-      currentIsStarred
-    );
-    const success = await handleToggleStar(convId, currentIsStarred);
-    console.log("🚀 Star toggle result:", success);
-    if (success) {
-      // Optionally show success message
-      console.log("Star status updated successfully");
-    } else {
-      console.log("Failed to update star status");
-    }
-  };
-
-  const handleClearClick = async (convId) => {
-    setShowContextMenu(null);
-    const success = await handleClearConversation(convId);
-    if (success) {
-      // Optionally show success message
-      console.log("Conversation cleared successfully");
-    }
-  };
-
-  const handleRenameClick = (convId, currentTitle) => {
-    setShowContextMenu(null);
-    setEditingConversationId(convId);
-    setEditingTitle(currentTitle);
-  };
-
-  const handleRenameSubmit = async () => {
-    if (!editingTitle.trim() || !editingConversationId) return;
-
-    const success = await handleUpdateConversation(
-      editingConversationId,
-      editingTitle.trim()
-    );
-    if (success) {
-      setEditingConversationId(null);
-      setEditingTitle("");
-      console.log("Conversation renamed successfully");
-    }
-  };
-
-  const handleRenameCancel = () => {
-    setEditingConversationId(null);
-    setEditingTitle("");
-  };
-
-  const handleChatbotClick = (path) => {
-    // On mobile, close sidebar after navigation
-    if (window.innerWidth < 1024) {
-      setSidebarOpen(false);
-    }
-    router.push(path);
-  };
-
-  const handleCreateChatbot = () => {
-    // Navigate to chatbots page where user can create new chatbot
-    if (window.innerWidth < 1024) {
-      setSidebarOpen(false);
-    }
-    router.push("/chatbots");
-  };
-
-  const handleConversationClick = (convId) => {
-    setSelectedConversation(convId);
-    // On mobile, close sidebar after navigation
-    if (window.innerWidth < 1024) {
-      setSidebarOpen(false);
-    }
-    router.push(`/chat/${convId}`);
-  };
+    handleDeleteConfirm,
+    handleDeleteCancel,
+    handleStarClick,
+    handleClearClick,
+    handleRenameClick,
+    handleRenameSubmit,
+    handleRenameCancel,
+    handleChatbotClick,
+    handleCreateChatbot,
+    handleConversationClick,
+    toggleSidebar,
+    handleContextMenu,
+    handleDeleteClick,
+    fetchSidebarChatbots,
+    setHoveredConv,
+    setShowContextMenu,
+    setEditingTitle,
+  } = useChatSidebar({
+    sidebarOpen,
+    setSidebarOpen,
+    selectedConversation,
+    setSelectedConversation,
+  });
 
   return (
     <>
@@ -300,7 +133,6 @@ function Sidebar({
               title="New chat"
             >
               <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-300" />
-              {/* Tooltip */}
               <div className="absolute left-16 bg-slate-800 text-white border-purple-700/50 px-3 py-2 rounded-lg text-sm opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 border pointer-events-none">
                 New chat
               </div>
@@ -316,7 +148,7 @@ function Sidebar({
           )}
         </div>
 
-        {/* Chatbots Section - Only show when not collapsed */}
+        {/* Chatbots Section */}
         {!collapsed && (
           <div className="px-2.5 sm:px-3 pb-3 flex-shrink-0">
             <div className="flex items-center justify-between mb-2">
@@ -328,7 +160,7 @@ function Sidebar({
                   onClick={fetchSidebarChatbots}
                   className="p-1 hover:bg-white/10 rounded transition-colors"
                   title="Refresh chatbots"
-                  disabled={sidebarChatbotsLoading}
+                  disabled={sidebarChatbotsLoading || !isLoggedIn}
                 >
                   <RefreshCw
                     className={`w-3 h-3 text-purple-400 ${sidebarChatbotsLoading ? "animate-spin" : ""}`}
@@ -346,7 +178,13 @@ function Sidebar({
 
             {/* Chatbot List */}
             <div className="space-y-1">
-              {sidebarChatbotsLoading ? (
+              {!isLoggedIn ? (
+                <div className="text-center py-2">
+                  <p className="text-xs text-purple-400">
+                    Please log in to view chatbots
+                  </p>
+                </div>
+              ) : sidebarChatbotsLoading ? (
                 <div className="flex items-center justify-center py-2">
                   <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
                 </div>
@@ -369,7 +207,6 @@ function Sidebar({
                     </button>
                   ))}
 
-                  {/* Show "View All" if there are more than 5 chatbots */}
                   {sidebarChatbots.length > 5 && (
                     <button
                       onClick={() => handleChatbotClick("/chatbots")}
@@ -388,7 +225,7 @@ function Sidebar({
           </div>
         )}
 
-        {/* Favorites Section - Only show when not collapsed */}
+        {/* Favorites Section */}
         {!collapsed && (
           <div className="px-2.5 sm:px-3 pb-3 flex-shrink-0">
             <div className="flex items-center justify-between mb-2">
@@ -397,7 +234,6 @@ function Sidebar({
               </h3>
             </div>
 
-            {/* Favorites List */}
             <div className="space-y-1">
               {conversations
                 .filter((conv) => conv.is_starred)
@@ -441,7 +277,6 @@ function Sidebar({
                         <button
                           className="w-full flex items-center gap-2 px-2 py-1.5 text-xs hover:bg-purple-700/30 transition-colors text-purple-200"
                           onClick={() => handleRenameClick(conv.id, conv.title)}
-                          disabled={deletingFromFavorites === conv.id}
                         >
                           <Edit className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                           Rename
@@ -452,7 +287,6 @@ function Sidebar({
                           onClick={() =>
                             handleStarClick(conv.id, conv.is_starred)
                           }
-                          disabled={deletingFromFavorites === conv.id}
                         >
                           <Star
                             className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${conv.is_starred ? "fill-current text-yellow-400" : ""}`}
@@ -463,7 +297,6 @@ function Sidebar({
                         <button
                           className="w-full flex items-center gap-2 px-2 py-1.5 text-xs hover:bg-purple-700/30 transition-colors text-purple-200"
                           onClick={() => handleClearClick(conv.id)}
-                          disabled={deletingFromFavorites === conv.id}
                         >
                           <Archive className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                           Clear Messages
@@ -472,10 +305,9 @@ function Sidebar({
                         <button
                           className="w-full flex items-center gap-2 px-2 py-1.5 text-xs hover:bg-red-900/30 transition-colors text-red-400"
                           onClick={() => handleDeleteClick(conv.id)}
-                          disabled={deletingFromFavorites === conv.id}
                         >
                           <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                          {deletingConversationId === conv.id
+                          {deleteConversationId === conv.id
                             ? "Deleting..."
                             : "Delete"}
                         </button>
@@ -545,12 +377,10 @@ function Sidebar({
                       }`}
                     >
                       {collapsed ? (
-                        // Collapsed view - just icon
                         <div className="w-full flex justify-start">
                           <MessageSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-300" />
                         </div>
                       ) : (
-                        // Expanded view
                         <div className="flex items-center w-full min-w-0 text-left">
                           <div className="flex items-center gap-1 flex-shrink-0">
                             {conv.is_starred && (
@@ -615,7 +445,6 @@ function Sidebar({
                         <button
                           className="w-full flex items-center gap-2 px-2 py-1.5 text-xs hover:bg-purple-700/30 transition-colors text-purple-200"
                           onClick={() => handleRenameClick(conv.id, conv.title)}
-                          disabled={deletingFromFavorites === conv.id}
                         >
                           <Edit className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                           Rename
@@ -623,8 +452,9 @@ function Sidebar({
 
                         <button
                           className="w-full flex items-center gap-2 px-2 py-1.5 text-xs hover:bg-purple-700/30 transition-colors text-purple-200"
-                          onClick={() => handleStarClick(conv.id)}
-                          disabled={deletingFromFavorites === conv.id}
+                          onClick={() =>
+                            handleStarClick(conv.id, conv.is_starred)
+                          }
                         >
                           <Star
                             className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${conv.is_starred ? "fill-current text-yellow-400" : ""}`}
@@ -635,7 +465,6 @@ function Sidebar({
                         <button
                           className="w-full flex items-center gap-2 px-2 py-1.5 text-xs hover:bg-purple-700/30 transition-colors text-purple-200"
                           onClick={() => handleClearClick(conv.id)}
-                          disabled={deletingFromFavorites === conv.id}
                         >
                           <Archive className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                           Clear Messages
@@ -644,10 +473,9 @@ function Sidebar({
                         <button
                           className="w-full flex items-center gap-2 px-2 py-1.5 text-xs hover:bg-red-900/30 transition-colors text-red-400"
                           onClick={() => handleDeleteClick(conv.id)}
-                          disabled={deletingFromFavorites === conv.id}
                         >
                           <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                          {deletingConversationId === conv.id
+                          {deleteConversationId === conv.id
                             ? "Deleting..."
                             : "Delete"}
                         </button>
@@ -679,11 +507,11 @@ function Sidebar({
           )}
         </div>
 
-        {/* Bottom Settings - Only show when not collapsed */}
+        {/* Bottom Settings */}
         {!collapsed && (
           <div className="px-4 py-2 border-t border-purple-600/50 flex-shrink-0">
             <button
-              onClick={() => router.push("/settings")}
+              onClick={() => (window.location.href = "/settings")}
               className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-purple-800/20 transition-colors text-purple-300"
             >
               <Settings className="w-4 h-4" />
@@ -696,12 +524,11 @@ function Sidebar({
         {collapsed && (
           <div className="py-2 flex-shrink-0">
             <button
-              onClick={() => router.push("/settings")}
+              onClick={() => (window.location.href = "/settings")}
               className="w-12 h-12 flex items-center justify-center rounded-lg hover:bg-purple-800/20 transition-colors text-purple-300 mx-auto group relative"
               title="Settings"
             >
               <Settings className="w-5 h-5" />
-              {/* Tooltip */}
               <div className="absolute left-16 bg-slate-800 text-white border-purple-700/50 px-2 py-2 rounded-lg text-sm opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 border pointer-events-none">
                 Settings
               </div>
