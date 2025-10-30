@@ -3,8 +3,6 @@
 import axios from "axios";
 import { enqueueSnackbar } from "notistack";
 import { getAccessToken } from "./access-token.util";
-import { delay } from "./generic.util";
-import { removeUser } from "./users.util";
 import { getSessionId } from "./session";
 
 const api = (headers = null) => {
@@ -52,12 +50,12 @@ const api = (headers = null) => {
             response.config.url
           ));
 
-      if (isSuccessResponse) {
-        enqueueSnackbar(response.data?.message || "Success", {
-          variant: "success",
-        });
-        await delay(700);
-      }
+      // if (isSuccessResponse) {
+      //   enqueueSnackbar(response.data?.message || "Success", {
+      //     variant: "success",
+      //   });
+      //   await delay(700);
+      // }
 
       return response;
     },
@@ -73,11 +71,11 @@ const api = (headers = null) => {
         error.response?.data?.message || error.message || error.toString();
 
       // Handle unauthorized
-      // if (status === 401 && typeof window !== "undefined") {
-      //   removeUser();
-      //   window.location.href = "/login";
-      //   return;
-      // }
+      if (status === 401 && typeof window !== "undefined") {
+        removeUser();
+        window.location.href = "/login";
+        return;
+      }
 
       // Handle message display
       if (Array.isArray(message)) {

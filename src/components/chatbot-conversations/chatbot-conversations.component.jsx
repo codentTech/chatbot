@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   Plus,
   MessageSquare,
@@ -9,10 +9,11 @@ import {
   Edit,
   MoreVertical,
   ArrowLeft,
-  Share2,
-  Archive,
   Trash2,
+  Loader2,
+  AlertTriangle,
 } from "lucide-react";
+import useChatbotConversations from "./use-chatbot-conversations.hook";
 
 const ChatbotConversations = ({
   chatbot,
@@ -20,109 +21,34 @@ const ChatbotConversations = ({
   onNewConversation,
   searchQuery = "",
 }) => {
-  const [selectedConversation, setSelectedConversation] = useState(null);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [showContextMenu, setShowContextMenu] = useState(null);
-  const [showTrainingPanel, setShowTrainingPanel] = useState(false);
-  const [trainingFiles, setTrainingFiles] = useState([]);
-
-  const [newConversationData, setNewConversationData] = useState({
-    title: "",
-    description: "",
-  });
-
-  // Sample conversations data - this would come from your backend
-  const [conversations] = useState([
-    {
-      id: 1,
-      title: "UX Design Best Practices",
-      preview:
-        "Discussion about mobile app UX design principles and current trends...",
-      lastMessage: "What are the key principles for mobile-first design?",
-      timestamp: "2 hours ago",
-      messageCount: 24,
-      isStarred: true,
-    },
-    {
-      id: 2,
-      title: "React Native Performance",
-      preview:
-        "Optimizing React Native app performance and reducing bundle size...",
-      lastMessage: "How can I reduce the app bundle size?",
-      timestamp: "1 day ago",
-      messageCount: 18,
-      isStarred: false,
-    },
-    {
-      id: 3,
-      title: "User Onboarding Flow",
-      preview:
-        "Designing an effective user onboarding experience for new users...",
-      lastMessage: "What's the optimal number of onboarding steps?",
-      timestamp: "3 days ago",
-      messageCount: 31,
-      isStarred: true,
-    },
-    {
-      id: 4,
-      title: "API Integration Strategy",
-      preview: "Planning the backend API integration and data flow...",
-      lastMessage: "Should I use REST or GraphQL for this project?",
-      timestamp: "1 week ago",
-      messageCount: 15,
-      isStarred: false,
-    },
-    {
-      id: 5,
-      title: "Testing Strategy",
-      preview: "Implementing comprehensive testing for the mobile app...",
-      lastMessage: "What testing frameworks do you recommend?",
-      timestamp: "2 weeks ago",
-      messageCount: 22,
-      isStarred: false,
-    },
-  ]);
-
-  const filteredConversations = conversations.filter(
-    (conv) =>
-      conv.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      conv.preview.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  // Close context menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (showContextMenu && !event.target.closest(".context-menu-container")) {
-        setShowContextMenu(null);
-      }
-    };
-
-    document.addEventListener("click", handleClickOutside);
-    return () => {
-      document.removeEventListener("click", handleClickOutside);
-    };
-  }, [showContextMenu]);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (newConversationData.title.trim()) {
-      const newConversation = {
-        id: Date.now(),
-        ...newConversationData,
-        preview: "Start a new conversation...",
-        lastMessage: "",
-        timestamp: "Just now",
-        messageCount: 0,
-        isStarred: false,
-      };
-      onNewConversation(newConversation);
-      setNewConversationData({
-        title: "",
-        description: "",
-      });
-      setShowCreateForm(false);
-    }
-  };
+  const router = useRouter();
+  const {
+    filteredConversations,
+    selectedConversation,
+    showCreateForm,
+    showContextMenu,
+    showTrainingPanel,
+    newConversationData,
+    isLoading,
+    error,
+    isCreating,
+    editConversationId,
+    editTitle,
+    setSelectedConversation,
+    setShowCreateForm,
+    setShowContextMenu,
+    setShowTrainingPanel,
+    setNewConversationData,
+    setEditConversationId,
+    setEditTitle,
+    handleCreateConversation,
+    handleDeleteConversation,
+    handleUpdateConversation,
+    handleToggleStar,
+    handleRename,
+    handleSaveRename,
+    handleSubmit,
+  } = useChatbotConversations({ chatbot, searchQuery });
 
   return (
     <div className="h-full flex flex-col bg-gradient-to-br from-slate-900/90 via-purple-900/40 to-slate-900/90 text-white overflow-hidden">
@@ -141,7 +67,10 @@ const ChatbotConversations = ({
                 {chatbot.name}
               </h1>
               <p className="text-xs sm:text-sm text-purple-300 truncate">
-                {chatbot.conversationCount} conversations • {chatbot.lastActive}
+                {filteredConversations.length}{" "}
+                {filteredConversations.length === 1
+                  ? "conversation"
+                  : "conversations"}
               </p>
             </div>
           </div>
@@ -183,8 +112,25 @@ const ChatbotConversations = ({
         {/* Left Side - Conversations List */}
         <div className="flex-1 border-b lg:border-b-0 lg:border-r border-white/10 overflow-y-auto">
           <div className="max-w-4xl mx-auto p-3 sm:p-4 md:p-6 lg:pr-6">
-            {/* Conversations */}
-            {filteredConversations.length === 0 ? (
+            {/* Loading State */}
+            {isLoading && filteredConversations.length === 0 ? (
+              <div className="text-center py-8 sm:py-12">
+                <Loader2 className="w-8 h-8 sm:w-12 sm:h-12 text-purple-400 animate-spin mx-auto mb-4" />
+                <p className="text-sm text-purple-300">
+                  Loading conversations...
+                </p>
+              </div>
+            ) : error ? (
+              <div className="text-center py-8 sm:py-12">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                  <AlertTriangle className="w-6 h-6 sm:w-8 sm:h-8 text-red-400" />
+                </div>
+                <h3 className="text-base sm:text-lg font-medium text-white mb-2">
+                  Error loading conversations
+                </h3>
+                <p className="text-sm text-purple-300 mb-4 px-4">{error}</p>
+              </div>
+            ) : filteredConversations.length === 0 ? (
               <div className="text-center py-8 sm:py-12">
                 <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
                   <MessageSquare className="w-6 h-6 sm:w-8 sm:h-8 text-purple-400" />
@@ -212,7 +158,10 @@ const ChatbotConversations = ({
                   <div
                     key={conv.id}
                     className="relative group p-3 sm:p-4 rounded-lg border border-white/10 hover:border-white/20 hover:bg-white/5 transition-all cursor-pointer"
-                    onClick={() => setSelectedConversation(conv.id)}
+                    onClick={() => {
+                      setSelectedConversation(conv.id);
+                      router.push(`/chat/${conv.id}`);
+                    }}
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1 min-w-0 pr-2">
@@ -265,7 +214,9 @@ const ChatbotConversations = ({
                       <div className="context-menu-container absolute right-2 top-8 bg-slate-800/95 border-purple-700/50 backdrop-blur-md border rounded-lg shadow-xl z-20 min-w-32 sm:min-w-36 py-1">
                         <button
                           className="w-full flex items-center gap-2 px-2 py-1.5 text-xs hover:bg-purple-700/30 transition-colors text-purple-200"
-                          onClick={() => setShowContextMenu(null)}
+                          onClick={() => {
+                            handleRename(conv.id, conv.title);
+                          }}
                         >
                           <Edit className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                           Rename
@@ -273,26 +224,71 @@ const ChatbotConversations = ({
 
                         <button
                           className="w-full flex items-center gap-2 px-2 py-1.5 text-xs hover:bg-purple-700/30 transition-colors text-purple-200"
-                          onClick={() => setShowContextMenu(null)}
+                          onClick={() => {
+                            handleToggleStar(conv.id, conv.isStarred);
+                            setShowContextMenu(null);
+                          }}
                         >
-                          <Share2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                          Share
-                        </button>
-                        <button
-                          className="w-full flex items-center gap-2 px-2 py-1.5 text-xs hover:bg-purple-700/30 transition-colors text-purple-200"
-                          onClick={() => setShowContextMenu(null)}
-                        >
-                          <Archive className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                          Archive
+                          <Star
+                            className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${conv.isStarred ? "fill-current text-yellow-400" : ""}`}
+                          />
+                          {conv.isStarred ? "Unstar" : "Star"}
                         </button>
 
                         <button
                           className="w-full flex items-center gap-2 px-2 py-1.5 text-xs hover:bg-red-900/30 transition-colors text-red-400"
-                          onClick={() => setShowContextMenu(null)}
+                          onClick={() => {
+                            if (
+                              confirm(
+                                "Are you sure you want to delete this conversation?"
+                              )
+                            ) {
+                              handleDeleteConversation(conv.id);
+                            }
+                          }}
                         >
                           <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                           Delete
                         </button>
+                      </div>
+                    )}
+
+                    {/* Edit Title Input */}
+                    {editConversationId === conv.id && (
+                      <div className="mt-2 p-2 bg-white/5 rounded border border-purple-500/30">
+                        <input
+                          type="text"
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-white text-sm outline-none focus:border-purple-500"
+                          placeholder="Enter new title"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              handleSaveRename();
+                            } else if (e.key === "Escape") {
+                              setEditConversationId(null);
+                              setEditTitle("");
+                            }
+                          }}
+                        />
+                        <div className="flex gap-2 mt-2">
+                          <button
+                            onClick={handleSaveRename}
+                            className="px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditConversationId(null);
+                              setEditTitle("");
+                            }}
+                            className="px-2 py-1 bg-white/10 hover:bg-white/20 text-white rounded text-xs"
+                          >
+                            Cancel
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -450,9 +446,17 @@ const ChatbotConversations = ({
               <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-2">
                 <button
                   type="submit"
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2.5 sm:py-3 px-4 rounded-lg transition-colors text-sm font-medium"
+                  disabled={isCreating || !newConversationData.title.trim()}
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-600/50 disabled:cursor-not-allowed text-white py-2.5 sm:py-3 px-4 rounded-lg transition-colors text-sm font-medium flex items-center justify-center gap-2"
                 >
-                  Start Conversation
+                  {isCreating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    "Start Conversation"
+                  )}
                 </button>
                 <button
                   type="button"
@@ -529,11 +533,7 @@ const ChatbotConversations = ({
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  // Start training logic here
-                  setShowTrainingPanel(false);
-                }}
-                disabled={trainingFiles.length === 0}
+                onClick={() => setShowTrainingPanel(false)}
                 className="flex-1 px-4 py-2.5 sm:py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-sm font-medium"
               >
                 Start Training

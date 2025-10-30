@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -32,45 +32,30 @@ export const useChatPage = () => {
   const [selectedModel, setSelectedModel] = useState("gpt-4o");
   const [pendingUserMessage, setPendingUserMessage] = useState(null);
 
-  // Load conversation data when component mounts or conversationId changes
+  const loadConversationData = useCallback(async () => {
+    if (!conversationId) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    const conversationResult = await dispatch(
+      getConversationById({ conversationId })
+    );
+
+    if (conversationResult.type.endsWith("/rejected")) {
+      setError("Conversation not found");
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(false);
+  }, [conversationId, dispatch]);
+
   useEffect(() => {
     if (conversationId) {
       loadConversationData();
     }
-  }, [conversationId]);
-
-  // Load conversation and messages
-  const loadConversationData = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      console.log("Loading conversation:", conversationId);
-
-      // Load conversation details
-      const conversationResult = await dispatch(
-        getConversationById({ conversationId })
-      );
-
-      console.log("Conversation result:", conversationResult);
-
-      if (conversationResult.type.endsWith("/rejected")) {
-        setError("Conversation not found");
-        return;
-      }
-
-      // Messages are already included in the conversation data, no need to load separately
-      console.log(
-        "Conversation loaded with messages:",
-        conversationResult.payload
-      );
-    } catch (err) {
-      setError("Failed to load conversation");
-      console.error("Error loading conversation:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [conversationId, loadConversationData]);
 
   // Handle sending a message
   const handleSendMessage = useCallback(async () => {
@@ -114,9 +99,8 @@ export const useChatPage = () => {
       }
     } catch (err) {
       setError("Failed to send message");
-      setMessage(messageText); // Restore message if failed
-      setPendingUserMessage(null); // Clear pending message
-      console.error("Error sending message:", err);
+      setMessage(messageText);
+      setPendingUserMessage(null);
     } finally {
       setIsLoading(false);
     }
@@ -148,7 +132,6 @@ export const useChatPage = () => {
       }
     } catch (err) {
       setError("Failed to create new conversation");
-      console.error("Error creating conversation:", err);
     } finally {
       setIsLoading(false);
     }
@@ -165,30 +148,70 @@ export const useChatPage = () => {
     [handleSendMessage]
   );
 
-  // Format messages for display
-  // Get messages from conversation data (backend includes messages in conversation response)
-  const conversationMessages = currentConversation.data?.messages || [];
+  // Handle retry message - regenerate AI response without adding new user message
+  const handleRetryMessage = useCallback(
+    async (messageContent, messageIndex) => {
+      if (!messageContent.trim() || sendMessageState.isLoading) return;
 
-  // Add pending user message if it exists
-  const allMessages = [...conversationMessages];
-  if (pendingUserMessage) {
-    allMessages.push({
-      id: pendingUserMessage.id,
-      message_type: "user",
-      content: pendingUserMessage.content,
-      timestamp: new Date().toISOString(),
-    });
-  }
+      try {
+        setIsLoading(true);
+        setError(null);
 
-  const formattedMessages = allMessages.map((msg, index) => ({
-    id: msg.id || index,
-    type: msg.message_type === "user" ? "user" : "ai",
-    content: msg.content,
-    timestamp: new Date(msg.timestamp).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
-  }));
+        // Send message to regenerate AI response
+        const result = await dispatch(
+          sendMessage({
+            message: messageContent,
+            conversationId: conversationId,
+            model: selectedModel,
+          })
+        );
+
+        if (result.type.endsWith("/fulfilled")) {
+          // Refresh conversation to get updated messages
+          await dispatch(getConversationById({ conversationId }));
+        } else {
+          setError("Failed to retry message");
+        }
+      } catch (err) {
+        setError("Failed to retry message");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [conversationId, selectedModel, dispatch, sendMessageState.isLoading]
+  );
+
+  const conversationMessages = useMemo(() => {
+    return currentConversation.data?.messages || [];
+  }, [currentConversation.data?.messages]);
+
+  const formattedMessages = useMemo(() => {
+    const allMessages = [...conversationMessages];
+
+    if (pendingUserMessage) {
+      allMessages.push({
+        id: pendingUserMessage.id,
+        message_type: "user",
+        content: pendingUserMessage.content,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    return allMessages.map((msg, index) => ({
+      id: msg.id || `msg-${index}`,
+      type: msg.message_type === "user" ? "user" : "ai",
+      content: msg.content || "",
+      timestamp: msg.timestamp
+        ? new Date(msg.timestamp).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+    }));
+  }, [conversationMessages, pendingUserMessage]);
 
   return {
     // State
@@ -214,6 +237,7 @@ export const useChatPage = () => {
     handleSendMessage,
     handleNewConversation,
     handleKeyPress,
+    handleRetryMessage,
     loadConversationData,
 
     // Redux state

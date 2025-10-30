@@ -171,20 +171,14 @@ function Sidebar({
                   className="p-1 hover:bg-white/10 rounded transition-colors"
                   title="Create new chatbot"
                 >
-                  <Plus className="w-3 h-3 text-purple-400" />
+                  <Edit className="w-3 h-3 text-purple-400" />
                 </button>
               </div>
             </div>
 
             {/* Chatbot List */}
             <div className="space-y-1">
-              {!isLoggedIn ? (
-                <div className="text-center py-2">
-                  <p className="text-xs text-purple-400">
-                    Please log in to view chatbots
-                  </p>
-                </div>
-              ) : sidebarChatbotsLoading ? (
+              {sidebarChatbotsLoading ? (
                 <div className="flex items-center justify-center py-2">
                   <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
                 </div>
@@ -317,9 +311,17 @@ function Sidebar({
                 ))}
             </div>
 
-            <button className="w-full mt-1.5 px-2 py-1 text-xs text-purple-300 hover:text-white hover:bg-white/10 rounded transition-colors font-medium">
-              View All →
-            </button>
+            {conversations?.length < 0 && (
+              <div className="text-center py-2">
+                <p className="text-xs text-purple-400">No favorites yet</p>
+              </div>
+            )}
+
+            {conversations?.length > 5 && (
+              <button className="w-full mt-1.5 px-2 py-1 text-xs text-purple-300 hover:text-white hover:bg-white/10 rounded transition-colors font-medium">
+                View All →
+              </button>
+            )}
           </div>
         )}
 
@@ -333,6 +335,12 @@ function Sidebar({
               <h3 className="text-xs font-semibold text-purple-300 uppercase tracking-wider">
                 Recent Conversations
               </h3>
+            </div>
+          )}
+
+          {conversations?.length < 0 && (
+            <div className="text-center py-2">
+              <p className="text-xs text-purple-400">No conversations yet</p>
             </div>
           )}
 

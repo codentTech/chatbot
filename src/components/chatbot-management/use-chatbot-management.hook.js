@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   fetchChatbots,
@@ -20,78 +20,124 @@ export const useChatbotManagement = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedChatbot, setSelectedChatbot] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [newChatbotData, setNewChatbotData] = useState({
+    name: "",
+    description: "",
+    category: "general",
+    isFavorite: false,
+  });
+  const hasInitialFetched = useRef(false);
+  const lastFiltersRef = useRef(null);
 
-  // Load chatbots on component mount (without filters)
   useEffect(() => {
-    dispatch(fetchChatbots({}));
-    setIsInitialLoad(false);
-  }, [dispatch]);
+    if (!hasInitialFetched.current) {
+      hasInitialFetched.current = true;
+      dispatch(fetchChatbots({}));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Debounced search effect - only trigger when filters change after initial load
   useEffect(() => {
-    // Skip the initial render to avoid double API call
-    if (isInitialLoad) return;
+    const filterKey = `${filters.search || ""}-${filters.category || ""}-${filters.status || ""}`;
+    const lastFilterKey = lastFiltersRef.current;
+
+    if (filterKey === lastFilterKey) {
+      return;
+    }
+
+    lastFiltersRef.current = filterKey;
 
     const timeoutId = setTimeout(() => {
       dispatch(fetchChatbots(filters));
-    }, 500); // 500ms delay
+    }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [dispatch, filters, isInitialLoad]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.search, filters.category, filters.status]);
 
-  // Handle search
+  useEffect(() => {
+    if (selectedChatbot) {
+      setNewChatbotData({
+        name: selectedChatbot.name || "",
+        description: selectedChatbot.description || "",
+        category: selectedChatbot.category || "general",
+        isFavorite: selectedChatbot.is_public || false,
+      });
+    } else {
+      setNewChatbotData({
+        name: "",
+        description: "",
+        category: "general",
+        isFavorite: false,
+      });
+    }
+  }, [selectedChatbot]);
+
+  useEffect(() => {
+    if (error) {
+      dispatch(clearError());
+    }
+  }, [error, dispatch]);
+
+  const formatLastActivity = (lastActivity) => {
+    if (!lastActivity) return "Never";
+    const date = new Date(lastActivity);
+    const now = new Date();
+    const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
+
+    if (diffInHours < 1) return "Just now";
+    if (diffInHours < 24)
+      return `${diffInHours} hour${diffInHours > 1 ? "s" : ""} ago`;
+
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7)
+      return `${diffInDays} day${diffInDays > 1 ? "s" : ""} ago`;
+
+    const diffInWeeks = Math.floor(diffInDays / 7);
+    return `${diffInWeeks} week${diffInWeeks > 1 ? "s" : ""} ago`;
+  };
+
   const handleSearch = (query) => {
     setSearchQuery(query);
     dispatch(setFilters({ search: query }));
   };
 
-  // Handle immediate search (for Enter key or search button)
   const handleImmediateSearch = (query) => {
     setSearchQuery(query);
     dispatch(setFilters({ search: query }));
-    // Trigger immediate API call
     dispatch(fetchChatbots({ ...filters, search: query }));
   };
 
-  // Handle category filter
   const handleCategoryFilter = (category) => {
     dispatch(setFilters({ category: category === "all" ? "" : category }));
   };
 
-  // Handle status filter
   const handleStatusFilter = (status) => {
     dispatch(setFilters({ status: status === "all" ? "" : status }));
   };
 
-  // Clear all filters
   const handleClearFilters = () => {
     setSearchQuery("");
     dispatch(clearFilters());
   };
 
-  // Handle create chatbot
   const handleCreateChatbot = async (chatbotData) => {
     const result = await dispatch(createChatbot(chatbotData));
     if (result.type.endsWith("/fulfilled")) {
       setShowCreateModal(false);
-      // Redux state will automatically update lastUpdated timestamp
     }
     return result;
   };
 
-  // Handle update chatbot
   const handleUpdateChatbot = async (chatbotId, updateData) => {
     const result = await dispatch(updateChatbot({ chatbotId, updateData }));
     if (result.type.endsWith("/fulfilled")) {
       setShowCreateModal(false);
       setSelectedChatbot(null);
-      // Redux state will automatically update lastUpdated timestamp
     }
     return result;
   };
 
-  // Handle delete chatbot
   const handleDeleteChatbot = async () => {
     if (!selectedChatbot) return;
 
@@ -99,69 +145,112 @@ export const useChatbotManagement = () => {
     if (result.type.endsWith("/fulfilled")) {
       setShowDeleteModal(false);
       setSelectedChatbot(null);
-      // Redux state will automatically update lastUpdated timestamp
     }
     return result;
   };
 
-  // Handle edit chatbot
   const handleEditChatbot = (chatbot) => {
     setSelectedChatbot(chatbot);
     setShowCreateModal(true);
   };
 
-  // Handle delete confirmation
   const handleDeleteClick = (chatbot) => {
     setSelectedChatbot(chatbot);
     setShowDeleteModal(true);
   };
 
-  // Clear error when component unmounts or error changes
-  useEffect(() => {
-    if (error) {
-      dispatch(clearError());
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (newChatbotData.name.trim()) {
+      let result;
+      if (selectedChatbot) {
+        result = await handleUpdateChatbot(selectedChatbot.id, {
+          name: newChatbotData.name,
+          description: newChatbotData.description,
+          category: newChatbotData.category,
+          is_public: newChatbotData.isFavorite,
+        });
+      } else {
+        result = await handleCreateChatbot({
+          name: newChatbotData.name,
+          description: newChatbotData.description,
+          category: newChatbotData.category,
+          status: "active",
+          model: "gpt-4o",
+          system_prompt: "You are a helpful assistant.",
+          is_public: newChatbotData.isFavorite,
+          tags: [],
+        });
+      }
+
+      if (result && result.type.endsWith("/fulfilled")) {
+        setNewChatbotData({
+          name: "",
+          description: "",
+          category: "general",
+          isFavorite: false,
+        });
+        setSelectedChatbot(null);
+      }
     }
-  }, [error, dispatch]);
+  };
 
-  // Get filtered chatbots
-  const filteredChatbots = chatbots.filter((chatbot) => {
-    const matchesSearch =
-      !searchQuery ||
-      chatbot.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      chatbot.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      chatbot.tags.some((tag) =>
-        tag.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+  const filteredChatbots = useMemo(() => {
+    return chatbots.filter((chatbot) => {
+      const matchesSearch =
+        !searchQuery ||
+        chatbot.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        chatbot.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        chatbot.tags.some((tag) =>
+          tag.toLowerCase().includes(searchQuery.toLowerCase())
+        );
 
-    const matchesCategory =
-      !filters.category || chatbot.category === filters.category;
-    const matchesStatus = !filters.status || chatbot.status === filters.status;
+      const matchesCategory =
+        !filters.category || chatbot.category === filters.category;
+      const matchesStatus =
+        !filters.status || chatbot.status === filters.status;
 
-    return matchesSearch && matchesCategory && matchesStatus;
-  });
+      return matchesSearch && matchesCategory && matchesStatus;
+    });
+  }, [chatbots, searchQuery, filters.category, filters.status]);
 
-  // Get chatbots by category
-  const chatbotsByCategory = filteredChatbots.reduce((acc, chatbot) => {
-    const category = chatbot.category || "other";
-    if (!acc[category]) {
-      acc[category] = [];
-    }
-    acc[category].push(chatbot);
-    return acc;
-  }, {});
+  const chatbotsByCategory = useMemo(() => {
+    return filteredChatbots.reduce((acc, chatbot) => {
+      const category = chatbot.category || "other";
+      if (!acc[category]) {
+        acc[category] = [];
+      }
+      acc[category].push(chatbot);
+      return acc;
+    }, {});
+  }, [filteredChatbots]);
 
-  // Get category stats
-  const categoryStats = Object.keys(chatbotsByCategory).map((category) => ({
-    category,
-    count: chatbotsByCategory[category].length,
-    chatbots: chatbotsByCategory[category],
-  }));
+  const categoryStats = useMemo(() => {
+    return Object.keys(chatbotsByCategory).map((category) => ({
+      category,
+      count: chatbotsByCategory[category].length,
+      chatbots: chatbotsByCategory[category],
+    }));
+  }, [chatbotsByCategory]);
+
+  const categories = useMemo(() => {
+    return [
+      { id: "all", name: "All", count: filteredChatbots.length },
+      ...categoryStats.map((stat) => ({
+        id: stat.category,
+        name:
+          stat.category.charAt(0).toUpperCase() +
+          stat.category.slice(1).replace("_", " "),
+        count: stat.count,
+      })),
+    ];
+  }, [filteredChatbots, categoryStats]);
 
   return {
-    // State
     chatbots: filteredChatbots,
     chatbotsByCategory,
     categoryStats,
+    categories,
     loading,
     error,
     searchQuery,
@@ -169,8 +258,7 @@ export const useChatbotManagement = () => {
     showCreateModal,
     showDeleteModal,
     selectedChatbot,
-
-    // Actions
+    newChatbotData,
     handleSearch,
     handleImmediateSearch,
     handleCategoryFilter,
@@ -181,8 +269,11 @@ export const useChatbotManagement = () => {
     handleDeleteChatbot,
     handleEditChatbot,
     handleDeleteClick,
+    handleSubmit,
+    formatLastActivity,
     setShowCreateModal,
     setShowDeleteModal,
     setSelectedChatbot,
+    setNewChatbotData,
   };
 };

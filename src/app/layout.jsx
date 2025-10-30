@@ -44,7 +44,7 @@ function LayoutWrapper({ children }) {
 
   return (
     <>
-      {loading && <FullPageLoader />}
+      {/* {loading && <FullPageLoader />} */}
       <React.Fragment>
         <div className="bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 min-h-screen">
           {children}
@@ -73,8 +73,8 @@ export default function RootLayout({ children }) {
       <body>
         <StyledEngineProvider injectFirst>
           <SnackbarProvider
-            anchorOrigin={{ vertical: "top", horizontal: "center" }}
-            autoHideDuration={3000}
+            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+            autoHideDuration={6000}
             maxSnack={2}
             Components={{
               success: StyledMaterialDesignContent,

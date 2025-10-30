@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AlertTriangle } from "lucide-react";
 import Sidebar from "../../../components/sidebar/sidebar.component";
 import Header from "../../../components/header/header.component";
 import ChatArea from "../../../components/chat-area/chat-area.component";
@@ -26,6 +27,7 @@ export default function ChatPage() {
     handleSendMessage,
     handleNewConversation,
     handleKeyPress,
+    handleRetryMessage,
   } = useChatPage();
 
   const handleNewChat = () => {
@@ -69,7 +71,7 @@ export default function ChatPage() {
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
               <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <div className="w-8 h-8 text-red-500">⚠️</div>
+                <AlertTriangle className="w-8 h-8 text-red-500" />
               </div>
               <p className="text-red-300 mb-4">{error}</p>
               <div className="flex gap-3 justify-center">
@@ -104,6 +106,7 @@ export default function ChatPage() {
             setSidebarOpen={setSidebarOpen}
             onSendMessage={handleSendMessage}
             isLoading={isLoading}
+            onRetryMessage={handleRetryMessage}
           />
         )}
       </div>

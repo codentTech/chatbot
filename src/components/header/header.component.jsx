@@ -1,8 +1,11 @@
+import { isLoginVerified } from "@/common/utils/access-token.util";
+import { getUser, removeUser } from "@/common/utils/users.util";
 import {
   Brain,
   ChevronDown,
   LogOut,
   Menu,
+  MessageSquarePlus,
   Search,
   Settings,
   Share2,
@@ -10,12 +13,9 @@ import {
   User,
   Zap,
 } from "lucide-react";
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { isLoginVerified } from "@/common/utils/access-token.util";
-import { removeUser } from "@/common/utils/users.util";
 import { useRouter } from "next/navigation";
-import { getUser } from "@/common/utils/users.util";
+import { useEffect, useState } from "react";
 
 export default function Header({
   selectedModel = "gpt-4o", // Keep this as the default value for backward compatibility
@@ -26,6 +26,7 @@ export default function Header({
   showSearch = false,
   sidebarOpen = false,
   setSidebarOpen = () => {},
+  onNewChat = () => {}, // Handler for new chat button (guest users)
 }) {
   const router = useRouter();
   const [showUserDropdown, setShowUserDropdown] = useState(false);
@@ -272,6 +273,18 @@ export default function Header({
 
           {/* Right Section */}
           <div className="flex items-center gap-1 sm:gap-1.5 flex-1 justify-end min-w-0">
+            {/* New Chat Button - Only show for guest users */}
+            {!isAuthenticated && (
+              <button
+                onClick={onNewChat}
+                className="flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-purple-600/80 hover:bg-purple-700 text-white rounded-lg transition-all duration-200 font-medium text-xs sm:text-sm shadow-md hover:shadow-purple-500/25 flex-shrink-0"
+                title="New Chat"
+              >
+                <MessageSquarePlus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">New Chat</span>
+              </button>
+            )}
+
             <button className="hidden md:flex justify-center items-center rounded-full bg-purple-600 p-1.5 sm:p-2 text-white hover:bg-gray-800 transition-colors backdrop-blur-sm flex-shrink-0">
               <Share2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
             </button>

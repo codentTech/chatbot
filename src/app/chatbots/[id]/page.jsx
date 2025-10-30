@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSelector, useDispatch } from "react-redux";
 import ChatbotLayout from "@/common/layouts/chatbot-layout.component";
@@ -13,9 +13,32 @@ export default function ChatbotPage() {
   const dispatch = useDispatch();
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { selectedChatbot, loading, error } = useSelector(
-    (state) => state.chatbot
-  );
+  // Use separate selectors to avoid unnecessary re-renders
+  const selectedChatbot = useSelector((state) => state.chatbot.selectedChatbot);
+  const loading = useSelector((state) => state.chatbot.loading);
+  const error = useSelector((state) => state.chatbot.error);
+
+  // Get chatbot ID only (stable primitive value)
+  const chatbotId = selectedChatbot?.id ? String(selectedChatbot.id) : null;
+
+  // Use ref to store stable chatbot reference - only update when ID changes
+  const chatbotRef = useRef(null);
+  const chatbotIdRef = useRef(null);
+
+  // Only update refs if ID actually changed (not just object reference)
+  if (chatbotId !== chatbotIdRef.current) {
+    chatbotIdRef.current = chatbotId;
+    chatbotRef.current = selectedChatbot;
+  } else if (selectedChatbot && chatbotRef.current?.id === selectedChatbot.id) {
+    // ID same, but object reference might have changed - keep old reference to prevent re-render
+    // Only update if selectedChatbot exists but ref doesn't (initial load)
+    if (!chatbotRef.current) {
+      chatbotRef.current = selectedChatbot;
+    }
+  }
+
+  // Use ref value to ensure stable prop
+  const memoizedChatbot = chatbotRef.current;
 
   useEffect(() => {
     if (params.id) {
@@ -55,7 +78,7 @@ export default function ChatbotPage() {
     );
   }
 
-  if (!selectedChatbot) {
+  if (!selectedChatbot || !memoizedChatbot) {
     return null;
   }
 
@@ -67,7 +90,7 @@ export default function ChatbotPage() {
       showSearch={true}
     >
       <ChatbotConversations
-        chatbot={selectedChatbot}
+        chatbot={memoizedChatbot}
         onBackToChatbots={handleBackToChatbots}
         onNewConversation={handleNewConversation}
         searchQuery={searchQuery}

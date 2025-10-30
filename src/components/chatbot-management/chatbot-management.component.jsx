@@ -9,158 +9,39 @@ import {
   Star,
   Edit,
   Trash2,
-  Filter,
-  X,
 } from "lucide-react";
-import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useChatbotManagement } from "./use-chatbot-management.hook";
 
-const ChatbotManagement = ({ onCreateChatbot }) => {
+const ChatbotManagement = () => {
   const router = useRouter();
   const {
     chatbots,
-    chatbotsByCategory,
-    categoryStats,
+    categories,
     loading,
     searchQuery,
     filters,
     showCreateModal,
     showDeleteModal,
     selectedChatbot,
+    newChatbotData,
     handleSearch,
     handleImmediateSearch,
     handleCategoryFilter,
-    handleStatusFilter,
-    handleClearFilters,
-    handleCreateChatbot,
-    handleUpdateChatbot,
-    handleDeleteChatbot,
+    setShowCreateModal,
     handleEditChatbot,
     handleDeleteClick,
-    setShowCreateModal,
+    handleSubmit,
+    handleDeleteChatbot,
+    formatLastActivity,
     setShowDeleteModal,
     setSelectedChatbot,
+    setNewChatbotData,
   } = useChatbotManagement();
-
-  // Helper function to get category color
-  const getCategoryColor = (category) => {
-    const colors = {
-      technology: "from-blue-500 to-purple-600",
-      general: "from-gray-500 to-slate-600",
-      other: "from-orange-500 to-red-600",
-      education: "from-purple-500 to-pink-600",
-      customer_service: "from-green-500 to-teal-600",
-      healthcare: "from-red-500 to-pink-600",
-      finance: "from-yellow-500 to-orange-600",
-      ecommerce: "from-indigo-500 to-blue-600",
-      travel: "from-cyan-500 to-blue-600",
-      entertainment: "from-pink-500 to-purple-600",
-    };
-    return colors[category] || "from-gray-500 to-slate-600";
-  };
-
-  // Helper function to format last activity
-  const formatLastActivity = (lastActivity) => {
-    if (!lastActivity) return "Never";
-    const date = new Date(lastActivity);
-    const now = new Date();
-    const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
-
-    if (diffInHours < 1) return "Just now";
-    if (diffInHours < 24)
-      return `${diffInHours} hour${diffInHours > 1 ? "s" : ""} ago`;
-
-    const diffInDays = Math.floor(diffInHours / 24);
-    if (diffInDays < 7)
-      return `${diffInDays} day${diffInDays > 1 ? "s" : ""} ago`;
-
-    const diffInWeeks = Math.floor(diffInDays / 7);
-    return `${diffInWeeks} week${diffInWeeks > 1 ? "s" : ""} ago`;
-  };
-
-  const categories = [
-    { id: "all", name: "All", count: chatbots.length },
-    ...categoryStats.map((stat) => ({
-      id: stat.category,
-      name:
-        stat.category.charAt(0).toUpperCase() +
-        stat.category.slice(1).replace("_", " "),
-      count: stat.count,
-    })),
-  ];
-
-  const [newChatbotData, setNewChatbotData] = useState({
-    name: "",
-    description: "",
-    category: "general",
-    isFavorite: false,
-  });
-
-  // Populate form data when editing a chatbot
-  useEffect(() => {
-    if (selectedChatbot) {
-      setNewChatbotData({
-        name: selectedChatbot.name || "",
-        description: selectedChatbot.description || "",
-        category: selectedChatbot.category || "general",
-        isFavorite: selectedChatbot.is_public || false,
-      });
-    } else {
-      // Reset form when not editing
-      setNewChatbotData({
-        name: "",
-        description: "",
-        category: "general",
-        isFavorite: false,
-      });
-    }
-  }, [selectedChatbot]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (newChatbotData.name.trim()) {
-      let result;
-      if (selectedChatbot) {
-        // Handle edit
-        result = await handleUpdateChatbot(selectedChatbot.id, {
-          name: newChatbotData.name,
-          description: newChatbotData.description,
-          category: newChatbotData.category,
-          is_public: newChatbotData.isFavorite,
-        });
-      } else {
-        // Handle create
-        result = await handleCreateChatbot({
-          name: newChatbotData.name,
-          description: newChatbotData.description,
-          category: newChatbotData.category,
-          status: "active",
-          model: "gpt-4o",
-          system_prompt: "You are a helpful assistant.",
-          is_public: newChatbotData.isFavorite,
-          tags: [],
-        });
-      }
-
-      // Only reset form and close modal if API call was successful
-      if (result && result.type.endsWith("/fulfilled")) {
-        setNewChatbotData({
-          name: "",
-          description: "",
-          category: "general",
-          isFavorite: false,
-        });
-        setSelectedChatbot(null);
-      }
-    }
-  };
 
   return (
     <div className="h-full flex flex-col">
-      {/* Main Container with Max Width */}
       <div className="max-w-6xl mx-auto w-full px-3 sm:px-4 md:px-6 py-4 sm:py-6 flex flex-col h-full">
-        {/* Enhanced Header Section with Responsive Flex Layout */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6 mb-4 sm:mb-6 flex-shrink-0">
           <div className="flex-1 min-w-0">
             <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-1 sm:mb-2">
@@ -172,17 +53,13 @@ const ChatbotManagement = ({ onCreateChatbot }) => {
           </div>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl flex items-center justify-center gap-2 transition-all duration-200 shadow-lg hover:shadow-purple-500/25 font-medium text-sm sm:text-base"
+            className="bg-purple-600 hover:bg-purple-700 text-white px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg transition-colors text-sm font-medium"
           >
-            <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-            <span className="hidden xs:inline">New Chatbot</span>
-            <span className="xs:hidden">New</span>
+            <span className="xs:hidden">Create Chatbot</span>
           </button>
         </div>
 
-        {/* Search and Filters Section - Responsive Layout */}
         <div className="mb-4 sm:mb-6 space-y-3 sm:space-y-0 sm:flex sm:flex-col lg:flex-row lg:items-center lg:justify-between lg:gap-4 flex-shrink-0">
-          {/* Search Bar */}
           <div className="relative flex-1 max-w-full lg:max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-purple-400" />
             <input
@@ -199,7 +76,6 @@ const ChatbotManagement = ({ onCreateChatbot }) => {
             />
           </div>
 
-          {/* Category Filter - Horizontal Scroll on Mobile */}
           <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-1 scrollbar-hide">
             {categories.map((category) => (
               <button
@@ -221,7 +97,6 @@ const ChatbotManagement = ({ onCreateChatbot }) => {
           </div>
         </div>
 
-        {/* Compact Chatbots Grid - Responsive */}
         <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 min-h-0">
           {loading ? (
             <div className="text-center py-6 sm:py-8 md:py-12">
@@ -262,7 +137,6 @@ const ChatbotManagement = ({ onCreateChatbot }) => {
                   className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg sm:rounded-xl p-3 sm:p-4 transition-all duration-200 cursor-pointer w-full hover:bg-white/15 hover:border-white/30 hover:shadow-lg hover:shadow-purple-500/10"
                   onClick={() => router.push(`/chatbots/${chatbot.id}`)}
                 >
-                  {/* Compact Header */}
                   <div className="flex items-start justify-between mb-2 sm:mb-3">
                     <div className="flex-1 min-w-0 pr-2">
                       <h3 className="font-semibold text-white text-sm sm:text-base mb-1.5 sm:mb-2 truncate">
@@ -299,7 +173,6 @@ const ChatbotManagement = ({ onCreateChatbot }) => {
                     </div>
                   </div>
 
-                  {/* Compact Stats */}
                   <div className="flex items-center justify-between text-xs text-purple-300 mb-2 sm:mb-3">
                     <div className="flex items-center gap-1.5">
                       <MessageSquare className="w-3 h-3" />
@@ -315,7 +188,6 @@ const ChatbotManagement = ({ onCreateChatbot }) => {
                     </div>
                   </div>
 
-                  {/* Compact Category Badge */}
                   <div>
                     <span className="inline-block px-2 py-1 bg-white/10 border border-white/20 rounded-md text-xs text-purple-300 font-medium">
                       {chatbot.category?.charAt(0).toUpperCase() +
@@ -328,7 +200,6 @@ const ChatbotManagement = ({ onCreateChatbot }) => {
           )}
         </div>
 
-        {/* Compact Create Chatbot Modal */}
         {showCreateModal && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
             <div className="bg-slate-800 border border-white/20 rounded-xl p-4 sm:p-6 w-full max-w-sm sm:max-w-md mx-auto max-h-[90vh] overflow-y-auto">
@@ -494,7 +365,6 @@ const ChatbotManagement = ({ onCreateChatbot }) => {
           </div>
         )}
 
-        {/* Delete Confirmation Modal */}
         {showDeleteModal && selectedChatbot && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
             <div className="bg-slate-800 border border-white/20 rounded-xl p-4 sm:p-6 w-full max-w-sm sm:max-w-md mx-auto">

@@ -9,7 +9,9 @@ import {
 } from "@/provider/features/chat/chat.slice";
 import Sidebar from "../components/sidebar/sidebar.component";
 import Header from "../components/header/header.component";
-import { Send, Paperclip, Mic, MessageCircleIcon } from "lucide-react";
+import ChatArea from "../components/chat-area/chat-area.component";
+import NewChat from "../components/new-chat/new-chat.component";
+import { isLoginVerified } from "@/common/utils/access-token.util";
 
 export default function HomePage() {
   const router = useRouter();
@@ -20,6 +22,13 @@ export default function HomePage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
 
+  // Guest conversation messages (stored locally, not persisted)
+  const [guestMessages, setGuestMessages] = useState([]);
+  const [showGuestChat, setShowGuestChat] = useState(false);
+
+  // Check if user is logged in
+  const isLoggedIn = isLoginVerified();
+
   const handleStartChat = async (messageText) => {
     if (!messageText.trim() || isLoading) return;
 
@@ -27,49 +36,189 @@ export default function HomePage() {
     setMessage(""); // Clear input immediately
 
     try {
-      setIsLoading(true);
+      // Check if user is logged in
+      if (isLoggedIn) {
+        // Navigate immediately before any async work
+        requestAnimationFrame(() => {
+          router.push(`/chat`);
+        });
 
-      console.log("Creating conversation with message:", text);
+        // Run conversation creation and first message in the background
+        (async () => {
+          const conversationResult = await dispatch(
+            createConversation({ title: "New Chat" })
+          );
 
-      // First create a new conversation
-      const conversationResult = await dispatch(
-        createConversation({ title: "New Chat" })
-      );
+          if (conversationResult.type.endsWith("/fulfilled")) {
+            const conversationId = conversationResult.payload.id;
 
-      console.log("Conversation result:", conversationResult);
+            // Fire-and-forget first message
+            dispatch(
+              sendMessage({
+                message: text,
+                conversationId: conversationId,
+                model: "gpt-4o",
+              })
+            );
 
-      if (conversationResult.type.endsWith("/fulfilled")) {
-        const conversationId = conversationResult.payload.id;
-        console.log("Created conversation ID:", conversationId);
+            router.push(`/chat/${conversationId}`);
+          } else {
+            console.error("Conversation creation failed:", conversationResult);
+          }
+        })();
+      } else {
+        // GUEST USER: Just send message and display response on same page
+        setIsLoading(true);
+        setShowGuestChat(true);
 
-        // Then send the message to the new conversation
+        // Add user message immediately
+        const userMessage = {
+          id: `guest-user-${Date.now()}`,
+          type: "user",
+          content: text,
+          timestamp: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        };
+        setGuestMessages((prev) => [...prev, userMessage]);
+
+        // Send message to backend (without conversation ID)
         const messageResult = await dispatch(
           sendMessage({
             message: text,
-            conversationId: conversationId,
+            conversationId: null, // No conversation ID for guests
             model: "gpt-4o",
           })
         );
 
-        console.log("Message result:", messageResult);
-
         if (messageResult.type.endsWith("/fulfilled")) {
-          // Navigate to the chat page
-          console.log("Navigating to chat:", conversationId);
-          router.push(`/chat/${conversationId}`);
+          // Add AI response - ChatArea will detect and stream it smoothly
+          // Service returns response.data.data, so payload is { user_message, ai_response, ... }
+          const responseData = messageResult.payload;
+          const aiContent = responseData?.ai_response || "";
+
+          const aiMessage = {
+            id: `guest-ai-${Date.now()}`,
+            type: "ai",
+            content: aiContent, // Full content - ChatArea will stream it
+            timestamp: new Date().toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          };
+          setGuestMessages((prev) => [...prev, aiMessage]);
         } else {
-          // If message sending failed, still navigate to the conversation
-          console.log(
-            "Message failed, but navigating to chat:",
-            conversationId
-          );
-          router.push(`/chat/${conversationId}`);
+          // Handle error - show error message
+          const errorMessage = {
+            id: `guest-error-${Date.now()}`,
+            type: "ai",
+            content: "Sorry, I encountered an error. Please try again.",
+            timestamp: new Date().toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          };
+          setGuestMessages((prev) => [...prev, errorMessage]);
         }
-      } else {
-        console.error("Conversation creation failed:", conversationResult);
       }
     } catch (error) {
       console.error("Failed to start chat:", error);
+      if (!isLoggedIn) {
+        // Show error for guest user
+        const errorMessage = {
+          id: `guest-error-${Date.now()}`,
+          type: "ai",
+          content: "Sorry, I encountered an error. Please try again.",
+          timestamp: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        };
+        setGuestMessages((prev) => [...prev, errorMessage]);
+      }
+    } finally {
+      if (!isLoggedIn) setIsLoading(false);
+    }
+  };
+
+  const handleSendMessage = () => {
+    handleStartChat(message);
+  };
+
+  const onKeyPress = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  // Handle new chat for guest users - clears current conversation
+  const handleNewChat = () => {
+    setGuestMessages([]);
+    setShowGuestChat(false);
+    setMessage("");
+    // Scroll to top if needed
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Handle retry for guest users - regenerates AI response without adding new user message
+  const handleRetryMessage = async (messageContent, messageIndex) => {
+    if (isLoading || !messageContent.trim()) return;
+
+    try {
+      setIsLoading(true);
+
+      // Send message to backend (without conversation ID)
+      const messageResult = await dispatch(
+        sendMessage({
+          message: messageContent,
+          conversationId: null, // No conversation ID for guests
+          model: "gpt-4o",
+        })
+      );
+
+      if (messageResult.type.endsWith("/fulfilled")) {
+        // Add AI response - ChatArea will detect and stream it smoothly
+        const responseData = messageResult.payload;
+        const aiContent = responseData?.ai_response || "";
+
+        const aiMessage = {
+          id: `guest-ai-${Date.now()}`,
+          type: "ai",
+          content: aiContent, // Full content - ChatArea will stream it
+          timestamp: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        };
+        setGuestMessages((prev) => [...prev, aiMessage]);
+      } else {
+        // Handle error - show error message
+        const errorMessage = {
+          id: `guest-error-${Date.now()}`,
+          type: "ai",
+          content: "Sorry, I encountered an error. Please try again.",
+          timestamp: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        };
+        setGuestMessages((prev) => [...prev, errorMessage]);
+      }
+    } catch (error) {
+      console.error("Failed to retry message:", error);
+      // Show error message
+      const errorMessage = {
+        id: `guest-error-${Date.now()}`,
+        type: "ai",
+        content: "Sorry, I encountered an error. Please try again.",
+        timestamp: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+      setGuestMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
@@ -90,13 +239,15 @@ export default function HomePage() {
           style={{ animationDelay: "2s" }}
         />
       </div>
-      {/* Sidebar */}
-      <Sidebar
-        sidebarOpen={sidebarOpen}
-        setSidebarOpen={setSidebarOpen}
-        selectedConversation={null}
-        setSelectedConversation={() => {}}
-      />
+      {/* Sidebar - Only show for logged in users */}
+      {isLoggedIn && (
+        <Sidebar
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+          selectedConversation={null}
+          setSelectedConversation={() => {}}
+        />
+      )}
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col relative">
@@ -104,99 +255,43 @@ export default function HomePage() {
         <Header
           selectedModel="gpt-4o"
           setSelectedModel={() => {}}
-          sidebarOpen={sidebarOpen}
-          setSidebarOpen={setSidebarOpen}
+          sidebarOpen={isLoggedIn ? sidebarOpen : false}
+          setSidebarOpen={isLoggedIn ? setSidebarOpen : () => {}}
+          onNewChat={handleNewChat}
         />
 
-        <div className="flex-1 flex flex-col items-center justify-center px-3 sm:px-4 md:px-6 lg:px-8">
-          {/* Eye-catching New Chat Header */}
-          <div className="text-center mb-6 sm:mb-8 md:mb-10 px-2 sm:px-4 w-full max-w-2xl mx-auto">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 mx-auto mb-4 sm:mb-6 md:mb-8 bg-gradient-to-br from-purple-600/20 to-purple-800/30 rounded-2xl flex items-center justify-center border border-purple-600/30 backdrop-blur-sm shadow-lg">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-inner">
-                <MessageCircleIcon className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" />
-              </div>
-            </div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3 sm:mb-4 md:mb-6 bg-gradient-to-r from-white via-purple-200 to-purple-300 bg-clip-text text-transparent leading-tight">
-              Start a New Conversation
-            </h1>
-            <p className="text-purple-300 text-sm sm:text-base md:text-lg lg:text-xl max-w-lg mx-auto leading-relaxed px-2">
-              Ask me anything - I'm here to help with coding, design, writing,
-              research, and much more.
-            </p>
-          </div>
-
-          {/* Chat Input Area */}
-          <div className="w-full max-w-4xl mx-auto px-2 sm:px-4 md:px-6">
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 p-2 sm:p-3">
-              <div className="flex items-end gap-2 sm:gap-3">
-                <div className="flex-1">
-                  <textarea
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Ask me anything... I'm here to help!"
-                    className="w-full bg-transparent text-white placeholder-gray-400 resize-none outline-none max-h-24 text-xs sm:text-sm focus:outline-none"
-                    rows="1"
-                    onInput={(e) => {
-                      e.target.style.height = "auto";
-                      e.target.style.height = e.target.scrollHeight + "px";
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
-                {/* Quick Actions */}
-                <div className="hidden md:flex flex-wrap gap-1.5 sm:gap-2 mt-2 sm:mt-3 justify-center sm:justify-start">
-                  <button className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-white/10 hover:bg-white/20 rounded-full text-xs transition-colors text-white">
-                    ✨ Explain this code
-                  </button>
-                  <button className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-white/10 hover:bg-white/20 rounded-full text-xs transition-colors text-white">
-                    🎨 Design ideas
-                  </button>
-                  <button className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-white/10 hover:bg-white/20 rounded-full text-xs transition-colors text-white">
-                    📝 Write content
-                  </button>
-                  <button className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-white/10 hover:bg-white/20 rounded-full text-xs transition-colors text-white">
-                    🔍 Research topic
-                  </button>
-                </div>
-
-                <div className="flex justify-end items-center gap-1.5 sm:gap-2 mt-2 sm:mt-0">
-                  <button className="p-1.5 sm:p-2 rounded-lg hover:bg-white/10 transition-colors text-white flex items-center justify-center">
-                    <Paperclip className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  </button>
-
-                  <button
-                    onClick={() => setIsRecording(!isRecording)}
-                    className={`p-1.5 sm:p-2 rounded-lg transition-colors flex items-center justify-center ${
-                      isRecording
-                        ? "bg-red-500 hover:bg-red-600"
-                        : "hover:bg-white/10"
-                    }`}
-                  >
-                    <Mic className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  </button>
-
-                  <button
-                    onClick={() => handleStartChat(message)}
-                    disabled={!message.trim() || isLoading}
-                    className="p-1.5 sm:p-2 bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 rounded-lg transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center"
-                  >
-                    {isLoading ? (
-                      <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    ) : (
-                      <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Show Chat Area for guest users with messages, or new chat UI for guests without messages or logged in users */}
+        {!isLoggedIn && showGuestChat ? (
+          // Guest user with active conversation - show ChatArea
+          <ChatArea
+            isDarkMode={isDarkMode}
+            chatMessages={guestMessages}
+            setChatMessages={setGuestMessages}
+            message={message}
+            setMessage={setMessage}
+            isRecording={isRecording}
+            setIsRecording={setIsRecording}
+            onSendMessage={handleSendMessage}
+            onKeyPress={onKeyPress}
+            isLoading={isLoading}
+            onRetryMessage={handleRetryMessage}
+          />
+        ) : (
+          // New chat UI (for logged in users or guests without messages)
+          <NewChat
+            message={message}
+            setMessage={setMessage}
+            isLoading={isLoading}
+            isRecording={isRecording}
+            setIsRecording={setIsRecording}
+            onSendMessage={handleSendMessage}
+            onKeyPress={onKeyPress}
+          />
+        )}
       </div>
 
-      {/* Mobile Overlay */}
-      {sidebarOpen && (
+      {/* Mobile Overlay - Only show when sidebar is open and user is logged in */}
+      {isLoggedIn && sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-20 lg:hidden"
           onClick={() => setSidebarOpen(false)}
