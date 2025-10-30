@@ -230,7 +230,10 @@ export default function useChatSidebar({
   const handleDeleteConfirm = async () => {
     if (!deleteConversationId) return;
 
-    const conversation = conversations.find(
+    const conversationList = Array.isArray(conversations)
+      ? conversations
+      : conversations?.data || [];
+    const conversation = conversationList.find(
       (conv) => conv.id === deleteConversationId
     );
     const isFavorite = conversation?.is_starred;

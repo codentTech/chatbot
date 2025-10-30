@@ -38,34 +38,28 @@ export default function HomePage() {
     try {
       // Check if user is logged in
       if (isLoggedIn) {
-        // Navigate immediately before any async work
-        requestAnimationFrame(() => {
-          router.push(`/chat`);
-        });
+        // Create conversation in background (do NOT route early)
+        const conversationResult = await dispatch(
+          createConversation({ title: "New Chat" })
+        );
 
-        // Run conversation creation and first message in the background
-        (async () => {
-          const conversationResult = await dispatch(
-            createConversation({ title: "New Chat" })
+        if (conversationResult.type.endsWith("/fulfilled")) {
+          const conversationId = conversationResult.payload.id;
+
+          // Route directly to concrete chat page (no interim)
+          router.push(`/chat/${conversationId}`);
+
+          // Fire sendMessage in background
+          dispatch(
+            sendMessage({
+              message: text,
+              conversationId: conversationId,
+              model: "gpt-4o",
+            })
           );
-
-          if (conversationResult.type.endsWith("/fulfilled")) {
-            const conversationId = conversationResult.payload.id;
-
-            // Fire-and-forget first message
-            dispatch(
-              sendMessage({
-                message: text,
-                conversationId: conversationId,
-                model: "gpt-4o",
-              })
-            );
-
-            router.push(`/chat/${conversationId}`);
-          } else {
-            console.error("Conversation creation failed:", conversationResult);
-          }
-        })();
+        } else {
+          console.error("Conversation creation failed:", conversationResult);
+        }
       } else {
         // GUEST USER: Just send message and display response on same page
         setIsLoading(true);
