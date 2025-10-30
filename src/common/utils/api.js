@@ -39,14 +39,9 @@ const api = (headers = null) => {
 
   apiInstance.interceptors.response.use(
     async (response) => {
-      console.log("🚀 ~ api ~ response:", response);
-      const method = response.config.method;
       const endpoint = response.config.url;
-      console.log("🚀 ~ api ~ endpoint:", endpoint);
 
       const isSuccessResponse = endpoint.includes("auth");
-
-      console.log("🚀 ~ api ~ isSuccessResponse:", isSuccessResponse);
 
       if (isSuccessResponse) {
         enqueueSnackbar(response.data?.message || "Success", {
@@ -58,6 +53,12 @@ const api = (headers = null) => {
       return response;
     },
     (error) => {
+      // Network issues
+      if (error.message === "Network Error") {
+        enqueueSnackbar(error.message, { variant: "error" });
+        throw error;
+      }
+
       const status = error.response?.status;
       const message =
         error.response?.data?.message || error.message || error.toString();
@@ -83,12 +84,6 @@ const api = (headers = null) => {
         if (message !== "Record Not Found") {
           enqueueSnackbar(message, { variant: "error" });
         }
-      }
-
-      // Network issues
-      if (error.message === "Network Error") {
-        enqueueSnackbar(error.message, { variant: "error" });
-        throw error;
       }
 
       return Promise.reject(error); // Reject instead of returning raw response
