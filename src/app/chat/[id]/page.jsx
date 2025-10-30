@@ -23,11 +23,13 @@ export default function ChatPage() {
     selectedModel,
     setSelectedModel,
     isLoading,
+    isLoadingConversation,
     error,
     handleSendMessage,
     handleNewConversation,
     handleKeyPress,
     handleRetryMessage,
+    clearConversationUIState,
   } = useChatPage();
 
   const handleNewChat = () => {
@@ -55,8 +57,8 @@ export default function ChatPage() {
         />
 
         {/* Loading State */}
-        {/* {isLoading && !chatMessages.length && (
-          <div className="flex-1 flex items-center justify-center">
+        {isLoadingConversation && !error && (
+          <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-slate-900/90 via-purple-900/40 to-slate-900/90">
             <div className="text-center">
               <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4">
                 <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
@@ -64,7 +66,7 @@ export default function ChatPage() {
               <p className="text-purple-300">Loading conversation...</p>
             </div>
           </div>
-        )} */}
+        )}
 
         {/* Error State */}
         {error && (
@@ -93,11 +95,11 @@ export default function ChatPage() {
         )}
 
         {/* Chat Area Component */}
-        {!error && (
+        {!isLoadingConversation && !error && (
           <ChatArea
             isDarkMode={isDarkMode}
             chatMessages={chatMessages}
-            setChatMessages={() => {}} // Messages are managed by the hook
+            setChatMessages={() => {}}
             message={message}
             setMessage={setMessage}
             isRecording={isRecording}
@@ -107,6 +109,8 @@ export default function ChatPage() {
             onSendMessage={handleSendMessage}
             isLoading={isLoading}
             onRetryMessage={handleRetryMessage}
+            onConversationChanged={clearConversationUIState}
+            conversationId={conversationId}
           />
         )}
       </div>

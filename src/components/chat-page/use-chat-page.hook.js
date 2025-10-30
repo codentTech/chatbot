@@ -28,27 +28,36 @@ export const useChatPage = () => {
   // Local state
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingConversation, setIsLoadingConversation] = useState(false);
   const [error, setError] = useState(null);
   const [selectedModel, setSelectedModel] = useState("gpt-4o");
   const [pendingUserMessage, setPendingUserMessage] = useState(null);
 
+  // Clear UI/pending state on conversation change
+  useEffect(() => {
+    setIsLoadingConversation(!!conversationId);
+    setPendingUserMessage(null);
+    setError(null);
+    setMessage("");
+    setIsLoading(false);
+    // Optionally clear custom streaming/override state here if needed (use callback/ref)
+  }, [conversationId]);
+
   const loadConversationData = useCallback(async () => {
     if (!conversationId) return;
-
-    setIsLoading(true);
+    setIsLoadingConversation(true);
     setError(null);
-
     const conversationResult = await dispatch(
       getConversationById({ conversationId })
     );
-
     if (conversationResult.type.endsWith("/rejected")) {
       setError("Conversation not found");
       setIsLoading(false);
+      setIsLoadingConversation(false);
       return;
     }
-
     setIsLoading(false);
+    setIsLoadingConversation(false);
   }, [conversationId, dispatch]);
 
   useEffect(() => {
@@ -227,6 +236,7 @@ export const useChatPage = () => {
       sendMessageState.isLoading ||
       currentConversation.isLoading ||
       messages.isLoading,
+    isLoadingConversation,
     error:
       error ||
       (currentConversation.isError ? currentConversation.message : null) ||
@@ -239,6 +249,13 @@ export const useChatPage = () => {
     handleKeyPress,
     handleRetryMessage,
     loadConversationData,
+    // For children/hooks to clear UI state
+    clearConversationUIState: () => {
+      setPendingUserMessage(null);
+      setError(null);
+      setMessage("");
+      setIsLoading(false);
+    },
 
     // Redux state
     sendMessageState,

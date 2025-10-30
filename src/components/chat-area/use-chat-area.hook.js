@@ -13,6 +13,8 @@ export default function useChatArea({
   onSendMessage,
   onRetryMessage,
   isLoggedIn = true,
+  onConversationChanged,
+  conversationId,
 }) {
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
@@ -357,6 +359,27 @@ export default function useChatArea({
       setIsAiTyping(shouldType);
     }
   }, [chatMessages, streamingMessageId, isAiTyping]);
+
+  // Clear local UI state when conversationId changes
+  useEffect(() => {
+    setStreamingMessage("");
+    setStreamingMessageId(null);
+    setStreamedMessageIds(new Set());
+    setAiContentOverrides(new Map());
+    setIsAiTyping(false);
+    if (streamIntervalRef.current) {
+      clearInterval(streamIntervalRef.current);
+      streamIntervalRef.current = null;
+    }
+    if (typingTimeout) {
+      clearTimeout(typingTimeout);
+      setTypingTimeout(null);
+    }
+    if (onConversationChanged) {
+      onConversationChanged();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId]);
 
   const handleSendMessage = useCallback(() => {
     if (!message.trim() || isLoading || isChatDisabled) return;
