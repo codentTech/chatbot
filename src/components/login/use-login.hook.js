@@ -104,6 +104,7 @@ export default function useLogin() {
     setLoading(true);
 
     const response = await dispatch(login({ payload: { ...values } }));
+    console.log("🚀 ~ onSubmit ~ response:", response);
 
     if (response.type.endsWith("/fulfilled")) {
       // Login successful - store user data in localStorage
