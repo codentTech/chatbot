@@ -194,6 +194,44 @@ export const useChatPage = () => {
     return currentConversation.data?.messages || [];
   }, [currentConversation.data?.messages]);
 
+  // Poll for first AI response if the conversation has a recent user message but no AI yet
+  useEffect(() => {
+    if (!conversationId) return;
+
+    const hasAnyAi = conversationMessages.some(
+      (m) => m.message_type !== "user"
+    );
+    const hasAnyUser = conversationMessages.some(
+      (m) => m.message_type === "user"
+    );
+
+    // Only poll when there is at least one user message and no AI message yet
+    if (hasAnyUser && !hasAnyAi) {
+      let attempts = 0;
+      let delay = 800; // start at 0.8s
+      const maxAttempts = 10; // ~8-12s total with backoff
+      let cancelled = false;
+
+      const tick = async () => {
+        if (cancelled) return;
+        attempts += 1;
+        await dispatch(getConversationById({ conversationId }));
+        const latest = await new Promise((r) => setTimeout(r, 0), null);
+        // Increase delay gradually
+        delay = Math.min(2000, Math.round(delay * 1.25));
+        if (attempts < maxAttempts) {
+          setTimeout(tick, delay);
+        }
+      };
+
+      const timer = setTimeout(tick, delay);
+      return () => {
+        cancelled = true;
+        clearTimeout(timer);
+      };
+    }
+  }, [conversationId, conversationMessages, dispatch]);
+
   const formattedMessages = useMemo(() => {
     const allMessages = [...conversationMessages];
 

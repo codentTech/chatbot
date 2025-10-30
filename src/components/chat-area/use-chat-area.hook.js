@@ -342,23 +342,30 @@ export default function useChatArea({
     });
   }, [chatMessages, typingTimeout]);
 
-  // Derive typing from conversation state
+  // Improved typing indicator: show if there are only user messages and none are streaming AI, OR a new user message is pending
   useEffect(() => {
     const last = chatMessages[chatMessages.length - 1];
-    const aiPlaceholderAtEnd =
-      !!last &&
-      last.type === "ai" &&
-      (!last.content || last.content.trim() === "");
-    const awaitingAfterUser =
-      !!last && last.type === "user" && !streamingMessageId;
+    const hasAnyAi = chatMessages.some(
+      (msg) => msg.type === "ai" && msg.content && msg.content.trim() !== ""
+    );
+    const lastIsUser = last && last.type === "user";
+    const noStreaming = !streamingMessageId;
 
-    const shouldType =
-      aiPlaceholderAtEnd || awaitingAfterUser || !!streamingMessageId;
-
-    if (shouldType !== isAiTyping) {
-      setIsAiTyping(shouldType);
+    if (
+      lastIsUser &&
+      noStreaming &&
+      !hasAnyAi &&
+      !isChatDisabled &&
+      !isAiTyping
+    ) {
+      setIsAiTyping(true);
+    } else if (
+      (hasAnyAi || streamingMessageId || isChatDisabled) &&
+      isAiTyping
+    ) {
+      setIsAiTyping(false);
     }
-  }, [chatMessages, streamingMessageId, isAiTyping]);
+  }, [chatMessages, isAiTyping, streamingMessageId, isChatDisabled]);
 
   // Clear local UI state when conversationId changes
   useEffect(() => {
