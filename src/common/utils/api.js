@@ -39,33 +39,25 @@ const api = (headers = null) => {
 
   apiInstance.interceptors.response.use(
     async (response) => {
+      console.log("🚀 ~ api ~ response:", response);
       const method = response.config.method;
-      const endpoint = response.config.url?.split("/").pop();
+      const endpoint = response.config.url;
+      console.log("🚀 ~ api ~ endpoint:", endpoint);
 
-      const isSuccessResponse =
-        (method === "get" && endpoint === "generate-otp") ||
-        (["post", "put", "delete"].includes(method) &&
-          !["get", "get-all"].includes(endpoint) &&
-          !["/upload/single", "/upload/multiple"].includes(
-            response.config.url
-          ));
+      const isSuccessResponse = endpoint.includes("auth");
 
-      // if (isSuccessResponse) {
-      //   enqueueSnackbar(response.data?.message || "Success", {
-      //     variant: "success",
-      //   });
-      //   await delay(700);
-      // }
+      console.log("🚀 ~ api ~ isSuccessResponse:", isSuccessResponse);
+
+      if (isSuccessResponse) {
+        enqueueSnackbar(response.data?.message || "Success", {
+          variant: "success",
+        });
+        await delay(700);
+      }
 
       return response;
     },
     (error) => {
-      // Network issues
-      if (error.message === "Network Error") {
-        enqueueSnackbar(error.message, { variant: "error" });
-        throw error;
-      }
-
       const status = error.response?.status;
       const message =
         error.response?.data?.message || error.message || error.toString();
@@ -91,6 +83,12 @@ const api = (headers = null) => {
         if (message !== "Record Not Found") {
           enqueueSnackbar(message, { variant: "error" });
         }
+      }
+
+      // Network issues
+      if (error.message === "Network Error") {
+        enqueueSnackbar(error.message, { variant: "error" });
+        throw error;
       }
 
       return Promise.reject(error); // Reject instead of returning raw response
